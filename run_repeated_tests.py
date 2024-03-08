@@ -1,5 +1,5 @@
 
-
+import argparse
 import random
 import numpy as np
 import uuid
@@ -21,21 +21,10 @@ from pymilvus import (
 
 
 
-def gen_vectors(dim, num):
-    return [[random.randint(0, 255) for _ in range(dim)] for _ in range(num)]
-
-# gen binary vectors
-def gen_binary_vectors(dim, num):
-    # in binary vectors, a bit represent a dimension.
-    # a value of `uint8` describe 8 dimension
-    vectors = gen_vectors(dim // 8, num)
-    return vec_to_binary(vectors)
-
-def vec_to_binary(vectors):
-    data = np.array(vectors, dtype='uint8').astype("uint8")
-    return [bytes(vector) for vector in data]
 
 
+# REPEATABILITY TEST PARAMS
+N_total_vectors = int(1e7)
 
 # Const names
 _COLLECTION_NAME = 'Reproducibility_Test'
@@ -169,13 +158,33 @@ def flatten_extend(matrix):
     for row in matrix:
         flat_list.extend(row)
     return flat_list
+    
 
+def gen_vectors(dim, num):
+    return [[random.randint(0, 255) for _ in range(dim)] for _ in range(num)]
+
+# gen binary vectors
+def gen_binary_vectors(dim, num):
+    # in binary vectors, a bit represent a dimension.
+    # a value of `uint8` describe 8 dimension
+    vectors = gen_vectors(dim // 8, num)
+    return vec_to_binary(vectors)
+
+def vec_to_binary(vectors):
+    data = np.array(vectors, dtype='uint8').astype("uint8")
+    return [bytes(vector) for vector in data]
+
+
+            
 if __name__ == "__main__":
-
-
-    # with open('all_fingerprints_extract_and_store_test_bdeba22d-3b0a-4ffd-81f2-1cb6fabafc1e_descriptors.npy','rb') as f:
-    #     vectors = np.load(f)
-    vectors = gen_vectors(_DIM//8, int(2e6))
+	
+    parser = argparse.ArgumentParser(description='Run milvus reproducibility test')
+    parser.add_argument('--n_vectors', dest='n_vectors', type=str, help='Total Number of Vectors to Generate For test')
+    
+    args = parser.parse_args()
+    n_vectors = int(float(args.n_vectors))
+    
+    vectors = gen_vectors(_DIM//8, n_vectors)
     data = np.array(vectors, dtype='uint8').astype("uint8")
     # data = data[:1200000]
     # convert to bytes
@@ -289,7 +298,7 @@ if __name__ == "__main__":
 
             test_results = {'metadata':test_metadata,
                             'results':data_out}
-            pickle.dump(test_results,open(f'non_reproducibile_index_test_results_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}.pickle','wb'))
+            pickle.dump(test_results,open(f'index_and_search_test_results_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}.pickle','wb'))
             print('\n\n')
             print('OUTCOME:\n')
             if all_results_same:
@@ -299,5 +308,4 @@ if __name__ == "__main__":
                 print('Either index non-reproducible or search is non-reproducible')
                 print(test_metadata)
             # all_test_results.append(test_results)
-
    
