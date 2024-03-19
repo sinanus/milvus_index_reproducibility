@@ -19,12 +19,16 @@ from pymilvus import (
     Partition
 )
 
-
-
-
-
 # REPEATABILITY TEST PARAMS
-N_total_vectors = int(1e7)
+embeddings_per_entity_vals = [1]
+N_insert_batch_size = 50000
+N_search_batch_size = 500
+single_non_vector_field_collection_vals = [False,True]
+N_index_rebuild = 2
+N_same_index_search_repeat = 2
+run_uuid = uuid.uuid4()
+
+# most index creation code below is from https://github.com/milvus-io/milvus-lite/blob/2.3/examples/example.py
 
 # Const names
 _COLLECTION_NAME = 'Reproducibility_Test'
@@ -41,6 +45,11 @@ _INDEX_TYPE = 'BIN_IVF_FLAT'
 _NLIST = 1000
 _NPROBE = 5
 _TOPK = 3
+index_params = {'metric_type':_METRIC_TYPE,
+                'index_type':_INDEX_TYPE,
+                'nlist':_NLIST,
+                'nprobe':_NPROBE,
+                'topk':_TOPK}
 
 def create_connection():
     connections.connect(
@@ -49,7 +58,7 @@ def create_connection():
     port='19530')
 
 
-# Create a collection named 'demo'
+# Create a collection
 def create_collection(name, embedding_id, id_field, vector_field):
     field0 = FieldSchema(name=embedding_id, dtype=DataType.VARCHAR, max_length=36, description="embedding_id", is_primary=True)
     field1 = FieldSchema(name=id_field, dtype=DataType.VARCHAR, max_length=36, description="entity_id", is_primary=False)
@@ -179,133 +188,155 @@ def vec_to_binary(vectors):
 if __name__ == "__main__":
 	
     parser = argparse.ArgumentParser(description='Run milvus reproducibility test')
-    parser.add_argument('--n_vectors', dest='n_vectors', type=str, help='Total Number of Vectors to Generate For test')
-    
+    parser.add_argument('--n_vectors_index', dest='n_vectors_index', type=str, help='Number of Vectors to put in index')
+    parser.add_argument('--n_vectors_search', dest='n_vectors_search', type=str, help='Number of Vectors to search')
+    parser.add_argument('--n_vectors_min', dest='n_vectors_min', type=str, help='For testing multiple N_vector_index cases set min, max and count')
+    parser.add_argument('--n_vectors_max', dest='n_vectors_max', type=str, help='For testing multiple N_vector_index cases set min, max and count')
+    parser.add_argument('--n_vectors_count', dest='n_vectors_count', type=str, help='For testing multiple N_vector cases set min, max and count')
+
+
     args = parser.parse_args()
-    n_vectors = int(float(args.n_vectors))
-    
-    vectors = gen_vectors(_DIM//8, n_vectors)
+    if args.n_vectors_index is not None:
+        n_vectors = [int(float(args.n_vectors_index))]
+    else:
+        assert (args.n_vectors_min is not None) & (args.n_vectors_max is not None) & (args.n_vectors_count is not None)
+        n_vectors = np.linspace(int(float(args.n_vectors_min)), 
+                                int(float(args.n_vectors_max)),
+                                int(float(args.n_vectors_count)),dtype=int)
+    if args.n_vectors_search is not None:
+        n_search = int(float(args.n_vectors_search))
+    else:
+        n_search = int(0.3 * n_vectors[0])
+
+    # generate vectors
+    vectors = gen_vectors(_DIM//8, n_vectors[-1]+n_search)
     data = np.array(vectors, dtype='uint8').astype("uint8")
-    # data = data[:1200000]
     # convert to bytes
-    data_bytes = [bytes(vector) for vector in data]
-    N = int(len(data_bytes) * 0.9)
-    vectors_to_index = data_bytes[:N]
-    vectors_to_search = data_bytes[N:]
+    data_bytes = [bytes(vector) for vector in data]   
+    for n_vec in n_vectors:
+        nvec_uuid = uuid.uuid4()
+        data_bytes_subset = data_bytes[:n_vec]
+        # N_index = int(len(data_bytes_subset) * 0.9)
+        vectors_to_index = data_bytes_subset[:-n_search]
+        vectors_to_search = data_bytes_subset[-n_search:]
 
-    uuids_for_embeddings = [str(uuid.uuid4()) for i in range(len(vectors_to_index))]
+        uuids_for_embeddings = [str(uuid.uuid4()) for i in range(len(vectors_to_index))]
 
-    embeddings_per_entity_vals = [1]
-    N_insert_batch_size = 50000
-    N_search_batch_size = 500
-    single_non_vector_field_collection_vals = [False,True]
-    N_index_rebuild = 3
-    N_same_index_search_repeat = 2
+        all_test_results = []
+        for single_non_vector_field in single_non_vector_field_collection_vals:
+            for embeddings_per_entity in embeddings_per_entity_vals:
+                vectors_to_index_batched = list(batched(vectors_to_index, embeddings_per_entity))
+                entity_uuids_batched = [[str(uuid.uuid4())]*len(v) for v in vectors_to_index_batched]
+                vectors_to_index_flat = flatten_extend(vectors_to_index_batched)
+                entity_uuids_batched_flat =  flatten_extend(entity_uuids_batched)
+
+                test_uuid = uuid.uuid4()
+                # pickle.dump(uuids,open(f'uuids_{test_uuid}.pickle','wb'))
+                
+                test_metadata = {'test_uuid':str(test_uuid),
+                                'run_uuid':str(run_uuid),
+                                'nvec_uuid':str(nvec_uuid),
+                                'n_vec_total':n_vec,
+                                'n_vec_index':len(vectors_to_index),
+                                'n_vec_search':len(vectors_to_search),
+                                'n_insert_batch_size':N_insert_batch_size,
+                                'n_search_batch_size':N_search_batch_size,
+                                'index_params':index_params,
+                                'single_non_vector_field':single_non_vector_field,
+                                'embeddings_per_entity':embeddings_per_entity,
+                                'number_vectors_per_insert_batch':N_insert_batch_size,
+                                'number_vectors_per_search_batch':N_search_batch_size,
+                                'number_index_rebuild':N_index_rebuild,
+                                'number_same_index_search_repeat':N_same_index_search_repeat}
+                print('\n\n')
+                print('#'*10)
+                print('Test conditions:')
+                print(test_metadata)
+                print('#'*10)
+
+                results = []
+                for i in range(N_index_rebuild):
+                    print('#'*5 + f' {i+1} of {N_index_rebuild} Index rebuilds' + '#'*5)
+
+                    create_connection()
+                    data_index = zip(list(batched(uuids_for_embeddings, N_insert_batch_size)),
+                                    list(batched(entity_uuids_batched_flat, N_insert_batch_size)),
+                                    list(batched(vectors_to_index_flat, N_insert_batch_size)))
+
+                    # drop collection if the collection exists
+                    if has_collection(_COLLECTION_NAME):
+                        drop_collection(_COLLECTION_NAME)
+
+                    # create collection
+                    if single_non_vector_field:
+                        collection, partition = create_collection_single_non_vector_field(_COLLECTION_NAME, _EMBEDDING_ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+                    else:
+                        collection, partition = create_collection(_COLLECTION_NAME, _EMBEDDING_ID_FIELD_NAME, _ENTITY_ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+
+                    # # alter ttl properties of collection level to something other than 0 for testing (0 means disabled)
+                    set_ttl_seconds(collection, 0 )
+
+                    # show collections
+                    list_collections()
 
 
+                    for d in data_index:
 
-    # all_test_results = []
-    for single_non_vector_field in single_non_vector_field_collection_vals:
-        for embeddings_per_entity in embeddings_per_entity_vals:
-            vectors_to_index_batched = list(batched(vectors_to_index, embeddings_per_entity))
-            entity_uuids_batched = [[str(uuid.uuid4())]*len(v) for v in vectors_to_index_batched]
-            vectors_to_index_flat = flatten_extend(vectors_to_index_batched)
-            entity_uuids_batched_flat =  flatten_extend(entity_uuids_batched)
+                        try:
+                            if single_non_vector_field:
+                                insert_embeddings(partition,[list(d[0]), list(d[2])])
+                            else:
+                                insert_embeddings(partition,[list(d[0]), list(d[1]), list(d[2])])
+                        except:
+                            import pdb
+                            pdb.set_trace()
 
-            test_uuid = uuid.uuid4()
-            # pickle.dump(uuids,open(f'uuids_{test_uuid}.pickle','wb'))
-            
-            test_metadata = {'uuid':test_uuid,
-                            'single_non_vector_field':single_non_vector_field,
-                            'embeddings_per_entity':embeddings_per_entity,
-                            'number_vectors_per_insert_batch':N_insert_batch_size,
-                            'number_vectors_per_search_batch':N_search_batch_size,
-                            'number_index_rebuild':N_index_rebuild,
-                            'number_same_index_search_repeat':N_same_index_search_repeat}
-            print('\n\n')
-            print('#'*10)
-            print('Test conditions:')
-            print(test_metadata)
-            print('#'*10)
+                    collection.flush()
 
-            results = []
-            for i in range(N_index_rebuild):
-                print('#'*5 + f' {i+1} of {N_index_rebuild} Index rebuilds' + '#'*5)
+                    get_entity_num(collection)
 
-                create_connection()
-                data_index = zip(list(batched(uuids_for_embeddings, N_insert_batch_size)),
-                                list(batched(entity_uuids_batched_flat, N_insert_batch_size)),
-                                 list(batched(vectors_to_index_flat, N_insert_batch_size)))
+                    # create index
+                    create_index(collection, _VECTOR_FIELD_NAME)
 
-                # drop collection if the collection exists
-                if has_collection(_COLLECTION_NAME):
-                    drop_collection(_COLLECTION_NAME)
+                    load_collection(collection)
+                    res = []
+                    for ii in range(N_same_index_search_repeat):
+                        r = [search(partition, _VECTOR_FIELD_NAME, list(vecs)) for vecs in batched(vectors_to_search, N_search_batch_size)]
+                        res.append(r)
+                    # res = list(zip(*res))
+                    results.append(res)
 
-                # create collection
-                if single_non_vector_field:
-                    collection, partition = create_collection_single_non_vector_field(_COLLECTION_NAME, _EMBEDDING_ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+                all_results_same = np.asarray([str(r)==str(results[0]) for r in results[1:]]).all()
+                test_metadata.update({'results_reproducible':all_results_same})
+                data_out = []
+                for index_rebuild_id, test_res_index in enumerate(results):
+                    # results for an index rebuild
+                    for same_index_search_repeat_id, results_same_index_repeat in enumerate(test_res_index):
+                        # results for same index but repeated searches
+                        for search_vectors_batch_id, search_batch_res in enumerate(results_same_index_repeat):
+                            # search results for a batch of vectors
+                            for search_vector_id, hits in enumerate(search_batch_res):
+                                data_out.append({
+                                                'index_rebuild_id':index_rebuild_id,
+                                                'same_index_search_repeat_id': same_index_search_repeat_id,
+                                                'search_vectors_batch_id': search_vectors_batch_id,
+                                                'search_vector_within_batch_id':search_vector_id,
+                                                'res':{k:v for k,v in zip(hits.ids,hits.distances)}
+                                                })
+
+                
+                test_results = {'metadata':test_metadata,
+                                'results':data_out}
+                pickle.dump(test_results,open(f'index_and_search_test_results_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}.pickle','wb'))
+                print('\n\n')
+                print('OUTCOME:\n')
+                if all_results_same:
+                    print('Results are reproducible. Rebuilding the index with same parameters and input, and then querying with a query set always returns same values')
+                    print(test_metadata)
                 else:
-                    collection, partition = create_collection(_COLLECTION_NAME, _EMBEDDING_ID_FIELD_NAME, _ENTITY_ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+                    print('Either index or search is non-reproducible')
+                    print(test_metadata)
+                all_test_results.append(test_results)
+    
 
-                # # alter ttl properties of collection level to something other than 0 for testing (0 means disabled)
-                set_ttl_seconds(collection, 0 )
-
-                # show collections
-                list_collections()
-
-
-                for d in data_index:
-
-                    try:
-                        if single_non_vector_field:
-                            insert_embeddings(partition,[list(d[0]), list(d[2])])
-                        else:
-                            insert_embeddings(partition,[list(d[0]), list(d[1]), list(d[2])])
-                    except:
-                        import pdb
-                        pdb.set_trace()
-
-                collection.flush()
-
-                get_entity_num(collection)
-
-                # create index
-                create_index(collection, _VECTOR_FIELD_NAME)
-
-                load_collection(collection)
-                res = []
-                for ii in range(N_same_index_search_repeat):
-                    r = [search(partition, _VECTOR_FIELD_NAME, list(vecs)) for vecs in batched(vectors_to_search, N_search_batch_size)]
-                    res.append(r)
-                res = list(zip(*res))
-                results.append(res)
-
-            all_results_same = np.asarray([str(r)==str(results[0]) for r in results[1:]]).all()
-            test_metadata.update({'all_results_same':all_results_same})
-            data_out = []
-            for run_result in results:
-                r = []
-                for search_set_pair in run_result:
-                    s = []
-                    for pair_id, search_set in enumerate(search_set_pair):
-                        sp = []
-                        for hits in search_set:
-                            sp.append({'identical_search_instance_id': pair_id,
-                                    'res':{k:v for k,v in zip(hits.ids,hits.distances)}})
-                        s.append(sp)
-                    r.append(s)
-                data_out.append(r)
-
-            test_results = {'metadata':test_metadata,
-                            'results':data_out}
-            pickle.dump(test_results,open(f'index_and_search_test_results_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}.pickle','wb'))
-            print('\n\n')
-            print('OUTCOME:\n')
-            if all_results_same:
-                print('All results the same. Rebuilding the index with same parameters and input, and then querying with a query set always returns same values')
-                print(test_metadata)
-            else:
-                print('Either index non-reproducible or search is non-reproducible')
-                print(test_metadata)
-            # all_test_results.append(test_results)
-   
+        pickle.dump(all_test_results,open(f'all_test_results_for_nvec_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}_uuid_{str(run_uuid)}.pickle','wb'))
