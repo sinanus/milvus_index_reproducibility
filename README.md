@@ -58,7 +58,17 @@ Sample results showing that while repeated search on same index are reproducible
 
 
 # UPDATE 2024-03-20
+## Sample results with nlist = nprobe = 1000
+
+This is weird as in theory nlist = nprobe should be equivalent to Brute Force search
+
+|   ('', 'n_vec_index') |   ('', 'n_vec_search') | ('', 'single_non_vector_field')   | ('', 'results_reproducible')   |   ('', 'fraction_reproducible_search_on_SAME_index') |   ('', 'fraction_reproducible_search_on_REBUILT_index') |   ('n_vectors_returned_in_both_search', 0) |   ('n_vectors_returned_in_both_search', 1) |   ('n_vectors_returned_in_both_search', 2) |   ('n_vectors_returned_in_both_search', 3) |
+|----------------------:|-----------------------:|:----------------------------------|:-------------------------------|-----------------------------------------------------:|--------------------------------------------------------:|-------------------------------------------:|-------------------------------------------:|-------------------------------------------:|-------------------------------------------:|
+|               5800000 |                 200000 | False                             | False                          |                                                    1 |                                                0.000225 |                                     158722 |                                      38457 |                                       2772 |                                         49 |
+|               5800000 |                 200000 | True                              | False                          |                                                    1 |                                                0.00026  |                                     158747 |                                      38495 |                                       2704 |                                         54 |
+
 ## BIN_FLAT also can be non-reproducible
+This is the weirdest as BIN_FLAT is suppsoed to be Frute Force search and 100% reproducible. Also very odd to have same index give different results now.
 
 To run test with 6 million vectors on BIN_FLAT index type (takes ~30mins on my desktop)
 `poetry run python bin_flat_reproduciblity_test_run.py --n_vectors_index 6e6 --n_vectors_search 2e5`
