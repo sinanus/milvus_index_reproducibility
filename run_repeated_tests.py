@@ -43,7 +43,7 @@ _DIM = 256
 _METRIC_TYPE = 'JACCARD'
 _INDEX_TYPE = 'BIN_IVF_FLAT'
 _NLIST = 1000
-_NPROBE = 5
+_NPROBE = 1000
 _TOPK = 3
 index_params = {'metric_type':_METRIC_TYPE,
                 'index_type':_INDEX_TYPE,

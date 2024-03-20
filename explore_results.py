@@ -100,6 +100,8 @@ cols_highlight = [('','n_vec_index'),
 				('n_vectors_returned_in_both_search', 2),
 				('n_vectors_returned_in_both_search', 3)]
 
+cols_highlight = [c for c in cols_highlight if c in df_summary_results.columns]
+
 df_summary_results_display = df_summary_results[cols_highlight]\
 								.to_markdown(index=False)
 
