@@ -184,17 +184,12 @@ if __name__ == "__main__":
     for n_vec in n_vectors:
         nvec_uuid = uuid.uuid4()
         data_bytes_subset = data_bytes[:n_vec]
-        # N_index = int(len(data_bytes_subset) * 0.9)
         vectors_to_index = data_bytes_subset[:-n_search]
         vectors_to_search = data_bytes_subset[-n_search:]
 
         uuids_for_embeddings = [str(uuid.uuid4()) for i in range(len(vectors_to_index))]
 
         all_test_results = []
-        # vectors_to_index_batched = list(batched(vectors_to_index, embeddings_per_entity))
-        # entity_uuids_batched = [[str(uuid.uuid4())]*len(v) for v in vectors_to_index_batched]
-        # vectors_to_index_flat = flatten_extend(vectors_to_index_batched)
-        # entity_uuids_batched_flat =  flatten_extend(entity_uuids_batched)
 
         test_uuid = uuid.uuid4()
                 
