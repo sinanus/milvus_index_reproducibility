@@ -45,11 +45,14 @@ _INDEX_TYPE = 'BIN_IVF_FLAT'
 _NLIST = 1000
 _NPROBE = 1000
 _TOPK = 3
+_CONSISTENCY_LEVEL = "Strong"
+
 index_params = {'metric_type':_METRIC_TYPE,
                 'index_type':_INDEX_TYPE,
                 'nlist':_NLIST,
                 'nprobe':_NPROBE,
-                'topk':_TOPK}
+                'topk':_TOPK,
+                'consistency_level': _CONSISTENCY_LEVEL}
 
 def create_connection():
     connections.connect(
@@ -152,8 +155,9 @@ def search(collection, vector_field,  search_vectors, print_results=False):
     search_param = {
         "data": search_vectors,
         "anns_field": vector_field,
-        "param": {"metric_type": _METRIC_TYPE, "nprobe": _NPROBE},
-        "limit": _TOPK}
+        "param": {"metric_type": _METRIC_TYPE, "params":{"nprobe": _NPROBE}},
+        "limit": _TOPK,
+        "consistency_level": _CONSISTENCY_LEVEL}
     results = collection.search(**search_param)
     if print_results:
         for i, result in enumerate(results):
