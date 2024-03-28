@@ -4,13 +4,14 @@ import glob
 import pickle
 import pandas as pd
 import numpy as np
+import time 
 
 # load latests file
 
 files = glob.glob('all_test_results*.pickle')
 latest_file = max(files, key=os.path.getctime)
 run_uuid = latest_file.split('uuid_')[-1].split('.pickle')[0]
-# run_uuid = '2019d218-def9-4e2c-bfe7-cb348f34a694'
+print(f'Analysing results from run: {run_uuid} from  {time.ctime(os.path.getctime(latest_file))}')
 
 files = glob.glob(f'*{run_uuid}*.pickle')
 

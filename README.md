@@ -68,7 +68,7 @@ Below sample results ran on a Desktop with AMD Ryzen 9 7900X and Ubuntu. Results
 This is the weirdest as BIN_FLAT is suppsoed to be Frute Force search and 100% reproducible. Also very odd to have same index give different results now.
 
 To run test with 6 million vectors on BIN_FLAT index type (takes ~30mins on my desktop)
-`poetry run python bin_flat_reproduciblity_test_run.py --n_vectors_index 6e6 --n_vectors_search 2e5`
+`poetry run python bin_flat_reproduciblity_test_run.py --n_vectors_index 5e6 --n_vectors_search 2e5`
 
 To get summary of results run
 `poetry run python explore_bin_flat_reproducibility_test_results.py`
@@ -77,17 +77,17 @@ Sample results I got show that:
 1. `fraction_reproducible_search_on_SAME_index` : Only ~98% of searches performed on the same index with the same vectors is reproducible (this was 100% on the previous BIN_IVF_FLAT index tests above)
 2. `fraction_reproducible_search_on_REBUILT_index` : ~97.6% of searches performen on two indices built with same parameters and vectors is reproducible (this was ~0% for the BIN_IVF_FLAT index tests above)
 
-|                                                             |   6f839d5f-7df5-44cc-a3f5-c1d7cf0d8cc3 |
+|                                                             |   6fe3bb56-54d2-493f-b290-9fb0f4849197 |
 |:------------------------------------------------------------|---------------------------------------:|
-| ('', 'n_vec_index')                                         |                               5.8e+06  |
-| ('', 'n_vec_search')                                        |                          200000        |
-| ('', 'results_reproducible')                                |                               0        |
-| ('', 'fraction_reproducible_search_on_SAME_index')          |                               0.981555 |
-| ('', 'fraction_reproducible_search_on_REBUILT_index')       |                               0.97602  |
-| ('n_vectors_returned_in_both_search', 1)                    |                              24        |
-| ('n_vectors_returned_in_both_search', 2)                    |                            2280        |
-| ('n_vectors_returned_in_both_search', 3)                    |                          197696        |
-| ('distance_delta_for_vecs_returned_in_both_search', 'mean') |                               0        |
-| ('distance_delta_for_vecs_returned_in_both_search', 'std')  |                               0        |
-| ('distance_delta_for_vecs_returned_in_both_search', 'min')  |                               0        |
-| ('distance_delta_for_vecs_returned_in_both_search', 'max')  |                               0        |
+| ('', 'n_vec_index')                                         |                                4.8e+06 |
+| ('', 'n_vec_search')                                        |                           200000       |
+| ('', 'results_reproducible')                                |                                0       |
+| ('', 'fraction_reproducible_search_on_SAME_index')          |                                0.99504 |
+| ('', 'fraction_reproducible_search_on_REBUILT_index')       |                                0.93683 |
+| ('n_vectors_returned_in_both_search', 1)                    |                               63       |
+| ('n_vectors_returned_in_both_search', 2)                    |                             6610       |
+| ('n_vectors_returned_in_both_search', 3)                    |                           193327       |
+| ('distance_delta_for_vecs_returned_in_both_search', 'mean') |                                0       |
+| ('distance_delta_for_vecs_returned_in_both_search', 'std')  |                                0       |
+| ('distance_delta_for_vecs_returned_in_both_search', 'min')  |                                0       |
+| ('distance_delta_for_vecs_returned_in_both_search', 'max')  |                                0       |

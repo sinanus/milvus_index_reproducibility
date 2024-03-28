@@ -7,7 +7,8 @@ import pickle
 import datetime
 import itertools
 from more_itertools import batched
-
+import pandas as pd
+from tqdm import tqdm
 
 from pymilvus import (
     connections,
@@ -151,7 +152,11 @@ def vec_to_binary(vectors):
     data = np.array(vectors, dtype='uint8').astype("uint8")
     return [bytes(vector) for vector in data]
 
-
+def all_list_elements_identical(l:list)->bool:
+	l_str = [str(x) for x in l]
+	if len(set(l_str))>1:
+		return False
+	return True
             
 if __name__ == "__main__":
 	
@@ -213,8 +218,8 @@ if __name__ == "__main__":
         print('#'*10)
 
         results = []
-        for i in range(N_index_rebuild):
-            print('#'*5 + f' {i+1} of {N_index_rebuild} Index rebuilds' + '#'*5)
+        for idx_index_rebuild in range(N_index_rebuild):
+            print('#'*5 + f' {idx_index_rebuild+1} of {N_index_rebuild} Index rebuilds' + '#'*5)
 
             create_connection()
             data_index = zip(list(batched(uuids_for_embeddings, N_insert_batch_size)),
@@ -244,34 +249,28 @@ if __name__ == "__main__":
             create_index(collection, _VECTOR_FIELD_NAME)
 
             load_collection(collection)
-            res = []
-            for ii in range(N_same_index_search_repeat):
-                r = [search(partition, _VECTOR_FIELD_NAME, list(vecs)) for vecs in batched(vectors_to_search, N_search_batch_size)]
-                res.append(r)
-            # res = list(zip(*res))
-            results.append(res)
-
-        all_results_same = np.asarray([str(r)==str(results[0]) for r in results[1:]]).all()
-        test_metadata.update({'results_reproducible':all_results_same})
-        data_out = []
-        for index_rebuild_id, test_res_index in enumerate(results):
-            # results for an index rebuild
-            for same_index_search_repeat_id, results_same_index_repeat in enumerate(test_res_index):
-                # results for same index but repeated searches
-                for search_vectors_batch_id, search_batch_res in enumerate(results_same_index_repeat):
-                    # search results for a batch of vectors
-                    for search_vector_id, hits in enumerate(search_batch_res):
-                        data_out.append({
-                                        'index_rebuild_id':index_rebuild_id,
-                                        'same_index_search_repeat_id': same_index_search_repeat_id,
-                                        'search_vectors_batch_id': search_vectors_batch_id,
-                                        'search_vector_within_batch_id':search_vector_id,
+            for idx_same_index_repeat in range(N_same_index_search_repeat):
+                for idx_search_vectors_batch_id, vecs in tqdm(enumerate(batched(vectors_to_search, N_search_batch_size)),total=np.ceil(len(vectors_to_search)/N_search_batch_size)):
+                    
+                    batch_search_res = search(partition, _VECTOR_FIELD_NAME, list(vecs))
+                    
+                    for idx_search_vector_within_batch, hits in enumerate(batch_search_res):
+                        results.append({
+                                        'index_rebuild_id':idx_index_rebuild,
+                                        'same_index_search_repeat_id': idx_same_index_repeat,
+                                        'search_vectors_batch_id': idx_search_vectors_batch_id,
+                                        'search_vector_within_batch_id':idx_search_vector_within_batch,
                                         'res':{k:v for k,v in zip(hits.ids,hits.distances)}
                                         })
 
+        results_df = pd.DataFrame(results)
+        all_results_same = results_df.groupby(['search_vectors_batch_id','search_vector_within_batch_id'])['res']\
+                    .apply(lambda x: all_list_elements_identical(x.to_list())).all()
+        
+        test_metadata.update({'results_reproducible':all_results_same})
         
         test_results = {'metadata':test_metadata,
-                        'results':data_out}
+                        'results':results}
         pickle.dump(test_results,open(f'index_and_search_test_results_{datetime.datetime.now().strftime("%Y-%m-%d_%H%M")}.pickle','wb'))
         print('\n\n')
         print('OUTCOME:\n')

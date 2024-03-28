@@ -103,8 +103,10 @@ cols_highlight = [('','n_vec_index'),
 
 cols_highlight = [c for c in cols_highlight if c in df_summary_results.columns]
 
-df_summary_results_display = df_summary_results[cols_highlight]\
+if df_summary_results.shape[0]<5:
+	df_summary_results_display = df_summary_results[cols_highlight].T\
+								.to_markdown(index=True)
+else:
+	df_summary_results_display = df_summary_results[cols_highlight]\
 								.to_markdown(index=False)
-
-
 print(df_summary_results_display)
