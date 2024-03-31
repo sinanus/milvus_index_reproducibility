@@ -1,7 +1,7 @@
 # milvus_index_reproducibility
 Scripts for testing Milvus Binary IVF index reproducibility by performing repeated indexing and searching using **identical index settings and vectors**.
 
-Using these scripts on a 2019 MBP I start to get non-reproducible BIN_IVF indices at around 1.5 million vectors. Bug report will be submitted to milvus. This repo is mainly for other people to reproduce the bug.
+Using these scripts on a 2019 MBP I start to get non-reproducible BIN_IVF indices at around 1.5 million vectors. Submitted an issue on milvus repo to get a better understanding of this reproducibility issue. This repo is mainly for other people to reproduce the issue.
 
 ## Setup
 `sudo docker compose up -d`
@@ -101,17 +101,17 @@ Below sample results ran on a Desktop with AMD Ryzen 9 7900X and Ubuntu. Results
 | num_vecs_in_topK_in_both_search_-_3           |                                                                                                                                     |                                                                                                                                     |                                    1286 |                                     198702 |
 
 ## BIN_FLAT also can be non-reproducible
-This is the weirdest as BIN_FLAT is suppsoed to be Frute Force search and 100% reproducible. Also very odd to have same index give different results now.
+This seems to be due to Milvus not guaranteeing the order of results that have the same score/distance. Note that in table below, even though only ~94% of results have same vector returned, the mean absolute error(or difference) between the distances of the returned results for two compared cases (e.g. two indices built with same settings and vectors) is 0 (See row titled `Repeat_search_on_REBUILT_indices MAE_distances_max`).  
 
-To run test with 6 million vectors on BIN_FLAT index type (takes ~30mins on my desktop)
+To run test with 5 million vectors on BIN_FLAT index type (takes ~30mins on my desktop)
 `poetry run python bin_flat_reproduciblity_test_run.py --n_vectors_index 5e6 --n_vectors_search 2e5`
 
 To get summary of results run
 `poetry run python explore_results.py`
 
 Sample results I got show that:
-1. `fraction_reproducible_search_on_SAME_index` : Only ~98% of searches performed on the same index with the same vectors is reproducible (this was 100% on the previous BIN_IVF_FLAT index tests above)
-2. `fraction_reproducible_search_on_REBUILT_index` : ~97.6% of searches performen on two indices built with same parameters and vectors is reproducible (this was ~0% for the BIN_IVF_FLAT index tests above)
+1. `fraction_reproducible_search_on_SAME_index` : Only ~99% of searches performed on the same index with the same vectors is reproducible (this was 100% on the previous BIN_IVF_FLAT index tests above)
+2. `fraction_reproducible_search_on_REBUILT_index` : ~94% of searches performen on two indices built with same parameters and vectors is reproducible (this was ~0% for the BIN_IVF_FLAT index tests above)
 
 |                                               | 102f123d-9322-4cea-aa44-8622abe39903                            |
 |:----------------------------------------------|:----------------------------------------------------------------|
