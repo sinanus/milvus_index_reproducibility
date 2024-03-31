@@ -157,7 +157,8 @@ def flatten_extend(matrix):
     
 
 def gen_vectors(dim, num):
-    return [[random.randint(0, 255) for _ in range(dim)] for _ in range(num)]
+    np.random.seed(42); vecs = np.random.randint(0,255,(num,dim))
+    return vecs
 
 # gen binary vectors
 def gen_binary_vectors(dim, num):
@@ -297,7 +298,9 @@ if __name__ == "__main__":
                 load_collection(collection)
                 for idx_same_index_repeat in range(N_same_index_search_repeat):
                     for idx_search_vectors_batch_id, vecs in tqdm(enumerate(batched(vectors_to_search, N_search_batch_size)),total=np.ceil(len(vectors_to_search)/N_search_batch_size)):
+                        
                         batch_search_res = search(partition, _VECTOR_FIELD_NAME, list(vecs), nprobe)
+                        
                         for idx_search_vector_within_batch, hits in enumerate(batch_search_res):
                             results.append({
                                             'index_rebuild_id':idx_index_rebuild,

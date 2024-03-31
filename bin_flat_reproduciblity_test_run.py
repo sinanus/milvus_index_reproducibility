@@ -139,7 +139,8 @@ def flatten_extend(matrix):
     
 
 def gen_vectors(dim, num):
-    return [[random.randint(0, 255) for _ in range(dim)] for _ in range(num)]
+    np.random.seed(42); vecs = np.random.randint(0,255,(num,dim))
+    return vecs
 
 # gen binary vectors
 def gen_binary_vectors(dim, num):
